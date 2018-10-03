@@ -1,0 +1,20 @@
+gadget_createSelectList("Default Column Sets", {"None","Default Set 1","Default Set 2"}, "None", true, "Predefined list of columns.");
+
+string [] cols;
+
+if(databaseAvailable("Prod DB") == true) {
+    string sql = "SELECT cfname	FROM public.customfield " +
+        "WHERE cfname NOT IN ('Approvals', 'Customer Request Type', 'Epic Color', 'Epic Name', 'Epic Status', 'Organizations', 'Request participants', 'Satisfaction', 'Satisfaction date', 'Story Points', 'Time in Status', 'Time to first response', 'Time to resolution') " +
+        "AND customfieldtypekey NOT IN ('com.apwide.document.file-field:apwide-doc-field') ORDER BY cfname";
+    cols = sql("Prod DB", sql);
+}
+else {
+    cols = readFromCSVFile("./Runner_Gadget/Data/customFields.csv", false);
+}
+string [] standVars = {"affectedVersions", "assignee", "attachments", "components", "created", "description", "dueDate", "estimate", "environment", "fixVersions", "id", "issueType", "issueTypeId", "key", "labels", "originalEstimate", "parent", "parentId", "priority", "priorityId", "project", "projectId", "reporter", "resolution", "resolutionDate", "resolutionId", "securityLevel", "securityLevelId", "status", "statusId", "summary", "timeSpent", "updated", "votes", "watchers", "workflow", "workflowId"};
+
+
+cols = standVars + cols;
+gadget_createMultiSelectList("Additional Columns", cols, "", false, "Columns to be added to the export. Can be used to add columns to the default sets.");
+
+gadget_createTextArea("JQL", "", 3, true, "JQL search used to pull issues.");

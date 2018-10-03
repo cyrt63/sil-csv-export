@@ -1,0 +1,20 @@
+name,index
+issueType,1
+csvIssueLink,2
+reporter,3
+summary,4
+priority,5
+description,6
+status,7
+resolution,8
+created,9
+updated,10
+assignee,11
+cprimeAddOn,12
+timeSpent,13
+labels,14
+Impact Scope,15
+Last Comment,16
+isPS,17
+epicName,18
+epicLink,19

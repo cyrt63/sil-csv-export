@@ -1,0 +1,10 @@
+
+string [] files;
+
+files = findFiles("/opt/atlassian/shared/kepler/", ".*\\.zip");
+
+for(string f in files) {
+    deleteFile(f);
+}
+
+return files;

@@ -1,0 +1,156 @@
+struct field {
+    string name;
+    number index;
+}
+
+struct meme {
+   number id;
+   string name;
+   string body;
+   string image;
+}
+
+function quoteCSV(string content) {
+
+    content = replace(content, "\\", "\\\\");
+    content = replace(content, "\"", "\"\"");
+    content = replace(content, ",", "");
+    return "\"" + content + "\"";
+}
+
+function dateString() { //create semi-uniqe string
+    string format = "dMMyyyyHHmmss";
+    return formatDate(currentDate(), format);
+}
+
+string [] standVars = {"affectedVersions", "assignee", "attachments", "components", "created", "description", "dueDate", "estimate", "environment", "fixVersions", "id", "issueType", "issueTypeId", "key", "labels", "originalEstimate", "parent", "parentId", "priority", "priorityId", "project", "projectId", "reporter", "resolution", "resolutionDate", "resolutionId", "securityLevel", "securityLevelId", "status", "statusId", "summary", "timeSpent", "updated", "votes", "watchers", "workflow", "workflowId"};
+
+meme [] memes =readFromCSVFile("./Runner_Gadget/Data/csvMemes.csv", true);
+
+int memeIndex = random(size(memes));
+
+string ds = dateString();
+string csvPath = "/opt/atlassian/shared/kepler/blitz-upload/export_" + ds + ".csv";
+string zipPath = "/opt/atlassian/shared/kepler/export_" + ds + ".zip";
+
+deleteFile(csvPath);
+createFile(csvPath);
+
+string defaultSelection = gadget_getSingleValue(argv, "Default Column Sets");
+//string [] defaultSet;
+string [] null;
+string [] fields = gadget_getMultiValues(argv, "Additional Columns");
+string jql = gadget_getSingleValue(argv, "JQL");
+string [] keys = selectIssues(jql);
+number numKeys = size(keys);
+number count = 1;
+field [] defaultFields;
+field [] additionalFields;
+
+string [] exclusions = {"PRDT-249", "PRDT-78", "PRDT-20", "PRDT-2768"};
+string [] excludedFields = {"csvIssueLink", "epicName"};
+
+if(defaultSelection == "Default Set 1") {
+    //defaultSet = "issueType|csvIssueLink|assignee|summary|priority|status|created|updated|description|cprimeAddOn|timeCriticality|userBusinessValue|riskReduction|costDelay|duration|wsjf";
+    defaultFields = readFromCSVFile("./Runner_Gadget/Data/defaultFields01.csv", true);
+}
+else if(defaultSelection == "Default Set 2") {
+    defaultFields = readFromCSVFile("./Runner_Gadget/Data/defaultFields02.csv", true);
+}
+
+number fieldIndex = 100;
+for(string fld in fields) {
+    field f;
+    
+    f.name = fld;
+    f.index = fieldIndex;
+    
+    additionalFields += f;
+    
+    fieldIndex ++;
+}
+
+defaultFields += additionalFields;
+defaultFields = arrayToSet(defaultFields);
+defaultFields = arrayStructSort(defaultFields, "index");
+
+fields = null;
+
+for(field f in defaultFields) {
+    
+    fields += f.name;
+}
+
+string header = fields;
+
+runnerLog(header);
+
+header = replace(header, "|", ",");
+header = header + ", EMPTY COLUMN TO DELETE";
+printInFile(csvPath, header);
+
+string body = "";
+
+// Retrieve fields values and print in file one issue at a time
+for (string k in keys) {
+    string row = "";
+    
+    if(!arrayElementExists(exclusions, k)) {
+    
+        for (string fName in fields) {
+            
+            if(!arrayElementExists(excludedFields, fName)) {
+                
+                if(arrayElementExists(standVars, fName) || isCustomFieldInContext(fName, %k%.project, %k%.type)) {
+                    string temp;
+                    temp = k.#{%fName%};
+                    
+                    row = row + quoteCSV(trim(temp)) + ",";
+                }
+                else {
+                    row = row + ",";
+                }
+            }
+            else if(fName == "csvIssueLink") {
+                 row = row + "\"" + replace(trim(k.#{%fName%}), "\"", "\"\"") + "\"" + ",";
+            }
+            else if(fName == "epicName") {
+                if(isCustomFieldInContext("Epic Name", %k%.project, %k%.type)) {
+                    row = row + quoteCSV(trim(k.#{%fName%})) + ",";
+                }
+            }
+            else {
+                row = row + ",";
+            }
+        }
+    	// replace CR LF in text fields
+        row = replace(replace(row, "\n", "\r"), "\r", "     \t");
+        body += row + "\n";
+        runnerLog(trim(round(count/numKeys * 100, 0)) + "%");
+        
+        count ++;
+   }
+}
+
+printInFile(csvPath, body);
+
+zipFiles(csvPath, "export_" + ds);
+
+string from;
+string [] to;
+string [] cc;
+
+to += currentUser();
+
+//for(int x = 0; x < size(memes); x ++) {
+//    memeIndex = x;
+
+    string memeBody = memes[memeIndex].body;
+    string memeImage = memes[memeIndex].image;
+            
+    sendEmail(from, to, cc, "CSV Export [attached]", "memeCSV.tpl", "", {zipPath});
+//}
+
+deleteFile(csvPath);
+
+runnerLog("We like totally sent you an email buddy...");
